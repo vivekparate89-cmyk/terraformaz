@@ -6,54 +6,95 @@ pool:
 
 steps:
 
-# 1. Repository checkout
+# =========================
+# 1. Checkout Code
+# =========================
 - checkout: self
 
-# 2. Check Terraform installation and find .tf files
+
+# =========================
+# 2. Install Terraform
+# =========================
 - script: |
+    sudo apt-get update
+
+    sudo apt-get install -y \
+      gnupg \
+      software-properties-common \
+      curl
+
+    curl -fsSL https://apt.releases.hashicorp.com/gpg | \
+      sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+
+    echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | \
+      sudo tee /etc/apt/sources.list.d/hashicorp.list
+
+    sudo apt-get update
+    sudo apt-get install -y terraform
+
     terraform version
 
-    echo "Searching for Terraform files..."
-    TF_DIR=$(dirname "$(find "$(System.DefaultWorkingDirectory)" -type f -name "*.tf" | head -n 1)")
+  displayName: Install Terraform
 
-    echo "Terraform directory: $TF_DIR"
 
-    if [ ! -f "$TF_DIR/main.tf" ]; then
-      echo "No Terraform configuration found!"
+# =========================
+# 3. Find Terraform Folder
+# =========================
+- script: |
+    echo "Searching Terraform files..."
+
+    TF_FILE=$(find "$(System.DefaultWorkingDirectory)" -type f -name "*.tf" | head -n 1)
+
+    if [ -z "$TF_FILE" ]; then
+      echo "ERROR: No .tf file found"
       exit 1
     fi
 
-    echo "$TF_DIR" > /tmp/tf_dir.txt
-  displayName: Find Terraform Files
+    TF_DIR=$(dirname "$TF_FILE")
 
-# 3. Terraform Init
+    echo "Terraform file found: $TF_FILE"
+    echo "Terraform directory: $TF_DIR"
+
+    echo "##vso[task.setvariable variable=TF_DIR]$TF_DIR"
+
+  displayName: Find Terraform Folder
+
+
+# =========================
+# 4. Terraform Init
+# =========================
 - script: |
-    TF_DIR=$(cat /tmp/tf_dir.txt)
-
-    cd "$TF_DIR"
+    cd "$(TF_DIR)"
     terraform init
+
   displayName: Terraform Init
 
-# 4. Terraform Validate
-- script: |
-    TF_DIR=$(cat /tmp/tf_dir.txt)
 
-    cd "$TF_DIR"
+# =========================
+# 5. Terraform Validate
+# =========================
+- script: |
+    cd "$(TF_DIR)"
     terraform validate
+
   displayName: Terraform Validate
 
-# 5. Terraform Plan
-- script: |
-    TF_DIR=$(cat /tmp/tf_dir.txt)
 
-    cd "$TF_DIR"
+# =========================
+# 6. Terraform Plan
+# =========================
+- script: |
+    cd "$(TF_DIR)"
     terraform plan -out=tfplan
+
   displayName: Terraform Plan
 
-# 6. Terraform Apply
-- script: |
-    TF_DIR=$(cat /tmp/tf_dir.txt)
 
-    cd "$TF_DIR"
+# =========================
+# 7. Terraform Apply
+# =========================
+- script: |
+    cd "$(TF_DIR)"
     terraform apply -auto-approve tfplan
+
   displayName: Terraform Apply
