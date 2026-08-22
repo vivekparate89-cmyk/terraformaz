@@ -9,6 +9,9 @@ steps:
 # Checkout code from repository
 - checkout: self
 
+
+
+
 # Terraform Init
 - script: |
     terraform init
