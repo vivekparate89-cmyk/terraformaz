@@ -2,9 +2,33 @@ trigger:
 - main
 
 pool:
-  name: vicky-agent-pool
+  vmImage: ubuntu-latest
 
 steps:
 
-- script: echo "Hello from Self Hosted Agent"
-  displayName: "Test Agent"
+- checkout: self
+
+# Check existing Terraform
+- script: |
+    terraform version
+  displayName: Check Terraform Version
+
+# Terraform Init
+- script: |
+    terraform init
+  displayName: Terraform Init
+
+# Terraform Validate
+- script: |
+    terraform validate
+  displayName: Terraform Validate
+
+# Terraform Plan
+- script: |
+    terraform plan -out=tfplan
+  displayName: Terraform Plan
+
+# Terraform Apply
+- script: |
+    terraform apply -auto-approve tfplan
+  displayName: Terraform Apply
