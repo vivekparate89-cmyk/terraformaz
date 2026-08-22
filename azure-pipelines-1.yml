@@ -9,12 +9,6 @@ steps:
 # Checkout code from repository
 - checkout: self
 
-# Install Terraform
-- task: TerraformInstaller@1
-  displayName: Install Terraform
-  inputs:
-    terraformVersion: latest
-
 # Terraform Init
 - script: |
     terraform init
