@@ -7,13 +7,13 @@ pool:
 steps:
 
 # =========================
-# Checkout Code
+# 1. Checkout Code
 # =========================
 - checkout: self
 
 
 # =========================
-# Install Terraform
+# 2. Install Terraform
 # =========================
 - script: |
     sudo apt-get update
@@ -38,18 +38,21 @@ steps:
 
 
 # =========================
-# Find Terraform Folder
+# 3. Find Terraform Folder
 # =========================
 - script: |
+    echo "Searching Terraform files..."
+
     TF_FILE=$(find "$(System.DefaultWorkingDirectory)" -type f -name "*.tf" | head -n 1)
 
     if [ -z "$TF_FILE" ]; then
-      echo "ERROR: No Terraform file found"
+      echo "ERROR: No .tf file found"
       exit 1
     fi
 
     TF_DIR=$(dirname "$TF_FILE")
 
+    echo "Terraform file found: $TF_FILE"
     echo "Terraform directory: $TF_DIR"
 
     echo "##vso[task.setvariable variable=TF_DIR]$TF_DIR"
@@ -58,26 +61,40 @@ steps:
 
 
 # =========================
-# Azure Login + Terraform
+# 4. Terraform Init
 # =========================
-- task: AzureCLI@2
-  displayName: Terraform Init Plan Apply
+- script: |
+    cd "$(TF_DIR)"
+    terraform init
 
-  inputs:
-    azureSubscription: 'Azure-Service-Connection'
-    scriptType: bash
-    scriptLocation: inlineScript
+  displayName: Terraform Init
 
-    inlineScript: |
-      echo "Logged into Azure"
-      az account show
 
-      cd "$(TF_DIR)"
+# =========================
+# 5. Terraform Validate
+# =========================
+- script: |
+    cd "$(TF_DIR)"
+    terraform validate
 
-      terraform init
+  displayName: Terraform Validate
 
-      terraform validate
 
-      terraform plan -out=tfplan
+# =========================
+# 6. Terraform Plan
+# =========================
+- script: |
+    cd "$(TF_DIR)"
+    terraform plan -out=tfplan
 
-      terraform apply -auto-approve tfplan
+  displayName: Terraform Plan
+
+
+# =========================
+# 7. Terraform Apply
+# =========================
+- script: |
+    cd "$(TF_DIR)"
+    terraform apply -auto-approve tfplan
+
+  displayName: Terraform Apply
