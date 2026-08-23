@@ -1,0 +1,83 @@
+trigger:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+
+# =========================
+# Checkout Code
+# =========================
+- checkout: self
+
+
+# =========================
+# Install Terraform
+# =========================
+- script: |
+    sudo apt-get update
+
+    sudo apt-get install -y \
+      gnupg \
+      software-properties-common \
+      curl
+
+    curl -fsSL https://apt.releases.hashicorp.com/gpg | \
+      sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+
+    echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | \
+      sudo tee /etc/apt/sources.list.d/hashicorp.list
+
+    sudo apt-get update
+    sudo apt-get install -y terraform
+
+    terraform version
+
+  displayName: Install Terraform
+
+
+# =========================
+# Find Terraform Folder
+# =========================
+- script: |
+    TF_FILE=$(find "$(System.DefaultWorkingDirectory)" -type f -name "*.tf" | head -n 1)
+
+    if [ -z "$TF_FILE" ]; then
+      echo "ERROR: No Terraform file found"
+      exit 1
+    fi
+
+    TF_DIR=$(dirname "$TF_FILE")
+
+    echo "Terraform directory: $TF_DIR"
+
+    echo "##vso[task.setvariable variable=TF_DIR]$TF_DIR"
+
+  displayName: Find Terraform Folder
+
+
+# =========================
+# Azure Login + Terraform
+# =========================
+- task: AzureCLI@2
+  displayName: Terraform Init Plan Apply
+
+  inputs:
+    azureSubscription: 'Azure-Service-Connection'
+    scriptType: bash
+    scriptLocation: inlineScript
+
+    inlineScript: |
+      echo "Logged into Azure"
+      az account show
+
+      cd "$(TF_DIR)"
+
+      terraform init
+
+      terraform validate
+
+      terraform plan -out=tfplan
+
+      terraform apply -auto-approve tfplan
